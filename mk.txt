@@ -1,0 +1,78 @@
+# ============================
+# 0) BACKUP KONFIGURASI LAMA
+# ============================
+/system backup save name=normal_backup
+/export file=normal_backup.rsc
+
+# ==================================================
+# 1) BRIDGE untuk WiFi
+# ==================================================
+/interface bridge
+add name=bridge1
+
+/interface bridge port
+add bridge=bridge1 interface=wlan1
+
+# ==================================================
+# 2) IP & DHCP untuk KLIEN WIFI
+# ==================================================
+/ip address
+add address=192.168.20.1/24 interface=bridge1
+
+/ip pool
+add name=dhcp_pool_wifi ranges=192.168.20.10-192.168.20.200
+
+/ip dhcp-server
+add name=dhcp_wifi address-pool=dhcp_pool_wifi interface=bridge1 lease-time=1h disabled=no
+
+/ip dhcp-server network
+add address=192.168.20.0/24 gateway=192.168.20.1 dns-server=192.168.20.1
+
+/ip dns set allow-remote-requests=yes
+
+# ==================================================
+# 3) WIRELESS: SSID "Edukasi" Open (tanpa password)
+# ==================================================
+/interface wireless security-profiles
+add name=openwifi mode=none
+
+/interface wireless set [ find default-name=wlan1 ] \
+    ssid="Edukasi" mode=ap-bridge disabled=no security-profile=openwifi
+
+# ==================================================
+# 4) DNS HIJACK: Semua domain resolve ke portal pusat
+# ==================================================
+
+# Misalnya IP server pusat = 10.12.7.5 (contoh ya, sesuaikan real-nya)
+# Ini yang penting → arahkan domain ke IP server pusat
+/ip dns static
+add name=tpportal-mtra.intranet.pajak.go.id address=10.12.7.5 ttl=1m
+
+# Paksa semua DNS query user diarahkan ke DNS Mikrotik
+/ip firewall nat
+add chain=dstnat action=redirect protocol=udp dst-port=53 to-ports=53 comment="Hijack DNS user ke Mikrotik"
+add chain=dstnat action=redirect protocol=tcp dst-port=53 to-ports=53
+
+# ==================================================
+# 5) OPSIONAL: Captive Portal Redirect (lebih mirip wifi publik)
+# ==================================================
+/ip hotspot profile
+add name=hsprof1 hotspot-address=192.168.20.1 html-directory=hotspot login-by=http-chap,http-cookie
+
+/ip hotspot
+add name=hotspot1 interface=bridge1 profile=hsprof1 address-pool=dhcp_pool_wifi disabled=no
+
+/ip hotspot user
+add name=auto password=auto profile=default
+
+/file add name=hotspot/login.html contents="<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'/>
+<title>Redirecting...</title>
+<meta http-equiv='refresh' content='0; url=https://tpportal-mtra.intranet.pajak.go.id'>
+</head>
+<body>
+Redirecting ke Portal Pajak...
+</body>
+</html>"
