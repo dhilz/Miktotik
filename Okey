@@ -1,0 +1,33 @@
+# 1) Buat bridge (LAN + WLAN)
+/interface bridge
+add name=bridge1
+
+/interface bridge port
+add bridge=bridge1 interface=wlan1
+add bridge=bridge1 interface=ether1    ;# ether1 = ke LAN pusat
+
+# 2) IP untuk Mikrotik (gunakan .200)
+/ip address
+add address=10.12.7.200/24 interface=bridge1
+
+# 3) DHCP server
+/ip pool
+add name=dhcp_pool_wifi ranges=10.12.7.100-10.12.7.199
+
+/ip dhcp-server
+add name=dhcp_wifi interface=bridge1 address-pool=dhcp_pool_wifi lease-time=8h disabled=no
+
+/ip dhcp-server network
+add address=10.12.7.0/24 gateway=10.12.7.254 dns-server=10.254.28.30,10.254.28.141
+
+# 4) Wireless SSID Edukasi tanpa password
+/interface wireless security-profiles
+add name=openwifi mode=none
+
+/interface wireless set [ find default-name=wlan1 ] \
+    ssid="Edukasi" mode=ap-bridge disabled=no security-profile=openwifi
+
+# 5) Force DNS hijack (semua klien dipaksa pakai DNS pusat)
+/ip firewall nat
+add chain=dstnat action=dst-nat to-addresses=10.254.28.30 to-ports=53 protocol=udp dst-port=53
+add chain=dstnat action=dst-nat to-addresses=10.254.28.30 to-ports=53 protocol=tcp dst-port=53
