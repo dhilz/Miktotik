@@ -1,0 +1,30 @@
+# 1) Bridge LAN & WLAN
+/interface bridge
+add name=bridge1
+
+/interface bridge port
+add bridge=bridge1 interface=wlan1
+add bridge=bridge1 interface=ether1
+
+# 2) (Opsional) Mikrotik sendiri dapat IP via DHCP dari LAN
+/ip dhcp-client
+add interface=bridge1 disabled=no
+
+# 3) Wireless SSID: Local Edukasi
+/interface wireless security-profiles
+add name=openwifi mode=none
+
+/interface wireless set [ find default-name=wlan1 ] \
+    ssid="Local Edukasi" mode=ap-bridge disabled=no security-profile=openwifi
+
+# 4) Force DNS ke pusat (pakai DNS yg didapat DHCP pusat)
+/ip firewall nat
+add chain=dstnat action=redirect to-ports=53 protocol=udp dst-port=53
+add chain=dstnat action=redirect to-ports=53 protocol=tcp dst-port=53
+
+# 5) Portal Redirect
+/ip firewall nat
+add chain=dstnat protocol=tcp dst-port=80,443 action=redirect to-ports=8080
+
+/ip proxy set enabled=yes port=8080
+/ip proxy access add dst-host=!tpportal-mtra.intranet.pajak.go.id action=deny
