@@ -1,0 +1,26 @@
+# 1) Bridge LAN + WLAN
+/interface bridge
+add name=bridge1
+
+/interface bridge port
+add bridge=bridge1 interface=wlan1
+add bridge=bridge1 interface=ether1   ;# ether1 ke LAN Ruijie/pusat
+
+# 2) IP Mikrotik sendiri (biar bisa dikelola)
+/ip address
+add address=10.12.7.200/24 interface=bridge1
+
+# 3) Wireless SSID Edukasi (open, no password)
+/interface wireless security-profiles
+add name=openwifi mode=none
+
+/interface wireless set [ find default-name=wlan1 ] \
+    ssid="Edukasi" mode=ap-bridge disabled=no security-profile=openwifi
+
+# 4) NAT Redirect ke Portal (HTTP + HTTPS)
+/ip firewall nat
+add chain=dstnat action=redirect to-ports=8080 protocol=tcp dst-port=80,443
+
+# 5) Web Proxy untuk portal
+/ip proxy set enabled=yes port=8080
+/ip proxy access add dst-host=!tpportal-mtra.intranet.pajak.go.id action=deny
