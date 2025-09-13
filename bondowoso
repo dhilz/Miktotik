@@ -1,0 +1,47 @@
+# ===================================
+# Mikrotik Bridge Mode + DHCP Server
+# ether1 = uplink ke kantor (IP manual)
+# wlan1  = SSID Local Edukasi
+# Client = otomatis dapat IP 10.12.55.x
+# ===================================
+
+# 1) Hapus bridge lama biar bersih
+/interface bridge remove [find]
+
+# 2) Buat bridge untuk LAN & WLAN
+/interface bridge
+add name=bridge1
+
+/interface bridge port
+add bridge=bridge1 interface=ether1
+add bridge=bridge1 interface=wlan1
+
+# 3) IP static manajemen Mikrotik (akses admin)
+/ip address
+add address=10.12.55.200/24 interface=bridge1 comment="IP manajemen Mikrotik"
+
+# 4) Default route ke gateway kantor
+/ip route
+add gateway=10.12.55.254
+
+# 5) DNS kantor
+/ip dns
+set servers=10.254.28.30 allow-remote-requests=yes
+
+# 6) Wireless SSID (Open)
+/interface wireless security-profiles
+add name=openwifi mode=none
+
+/interface wireless set [ find default-name=wlan1 ] \
+    ssid="Local Edukasi" mode=ap-bridge disabled=no security-profile=openwifi
+
+# 7) Pool DHCP untuk client (pakai network kantor langsung)
+/ip pool
+add name=pool-kantor ranges=10.12.55.50-10.12.55.150
+
+# 8) DHCP server di bridge1
+/ip dhcp-server
+add name=dhcp-kantor interface=bridge1 address-pool=pool-kantor lease-time=12h disabled=no
+
+/ip dhcp-server network
+add address=10.12.55.0/24 gateway=10.12.55.254 dns-server=10.254.28.30
